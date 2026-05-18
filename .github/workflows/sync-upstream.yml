@@ -1,0 +1,37 @@
+name: Sync Fork with Upstream
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Daily at 03:00 UTC = 10:00 AM Bangkok
+  workflow_dispatch: {}   # Manual trigger button in GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync with upstream
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/arkadiyt/bounty-targets-data.git
+          git fetch upstream main
+
+          # Save our workflow file before reset
+          cp -r .github /tmp/.github-backup
+
+          # Force-sync data to match upstream exactly
+          git reset --hard upstream/main
+
+          # Restore our workflow file
+          cp -r /tmp/.github-backup .github
+          git add .github/
+          git diff --cached --quiet || git commit -m "chore: restore sync workflow"
+
+          git push origin main --force
